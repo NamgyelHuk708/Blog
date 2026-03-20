@@ -1,0 +1,359 @@
+---
+title: "Introduction to NoSQL Databases"
+unit: 1
+date: "2026-03-20"
+excerpt: "Why do NoSQL databases exist, what makes them different  from the relational world I already knew, and how do you pick  the right one? My notes and reflections."
+tags: []
+readTime: "8 min read"
+published: true
+---
+
+
+Coming into DBS302, I already had a solid foundation in relational 
+databases from DBS101 covering ER diagrams, normalization up to 3NF, 
+SQL queries and ACID transactions. I thought I understood databases.
+
+## Why Does NoSQL Even Exist?
+
+Before jumping into what NoSQL *is*, I think it is important to 
+understand *why* it was created because it was not born out of 
+ideology. It was born out of necessity.
+
+The relational model worked brilliantly from the 1970s through the 
+early 2000s. Edgar F. Codd's invention gave us structured and 
+predictable data storage with powerful SQL and rock-solid ACID 
+guarantees. For online banking, airline reservations and e-commerce 
+with thousands of users it was perfect.
+
+Then Web 2.0 hit.
+
+Facebook was storing billions of messages. Twitter was handling 
+thousands of tweets per second. Google was indexing the entire web. 
+Suddenly relational databases became the bottleneck because they 
+scale *vertically* by buying a bigger server. There is a physical 
+ceiling to how big one machine can be and that same machine is also 
+a single point of failure.
+
+The big tech companies could not wait for Oracle to solve their 
+problems. So they built their own systems.
+
+Google built **Bigtable** in 2004, which directly inspired Apache 
+HBase and Cassandra. Amazon followed with **Dynamo** in 2007, which 
+became the foundation for DynamoDB and Riak. Facebook then 
+open-sourced **Cassandra** in 2008, which grew into Apache Cassandra 
+as we know it today.
+
+These internal systems sparked an open-source movement. The term 
+"NoSQL" itself was coined almost by accident as a hashtag chosen 
+for a 2009 San Francisco meetup by Johan Oskarsson. It stuck. And 
+while the name suggests "no SQL ever", the community now prefers 
+the more accurate interpretation of **Not Only SQL** meaning NoSQL 
+*complements* relational databases rather than replacing them.
+
+## So What Actually Is NoSQL?
+
+A NoSQL database is a non-relational database system that stores 
+and manages data using flexible schemas and alternative data models 
+designed for horizontal scalability and high availability in 
+large-scale distributed applications.
+
+The key characteristics that set it apart from what I already knew:
+
+**Schema flexibility** means there is no fixed table structure and 
+records can have different fields. This is useful when requirements 
+evolve quickly like in a startup that ships new features every week.
+
+**Non-relational data model** means data is not organized as tables 
+and joins. Instead it uses key-value pairs, JSON documents, wide 
+rows or graph nodes and edges depending on the database type.
+
+**Horizontal scalability** means you add more machines instead of 
+buying a bigger one. This is the fundamental shift that made NoSQL 
+attractive to companies like Google and Amazon.
+
+**Distributed fault-tolerant design** means data is replicated 
+across multiple nodes so no single failure brings everything down.
+
+**Relaxed consistency** through BASE properties is the one that 
+took me the longest to wrap my head around.
+
+## ACID vs BASE: The Core Trade-off
+
+I was very familiar with ACID from DBS101. Atomicity means all or 
+nothing. Consistency means data is always valid. Isolation means 
+transactions do not interfere with each other. Durability means 
+committed data survives failures.
+
+NoSQL systems often follow BASE instead.
+
+The contrast between the two is straightforward. ACID systems 
+prioritize **immediate and strong consistency** and are willing to 
+sacrifice availability when needed making them ideal for financial 
+transactions. BASE systems flip that priority by making 
+**availability the highest concern** and accepting that consistency 
+will arrive eventually making them ideal for social media and big 
+data workloads. In terms of scaling, ACID systems grow vertically 
+by upgrading to larger servers while BASE systems grow horizontally 
+by adding more servers to the cluster.
+
+BASE breaks down into three ideas. **Basically Available** means 
+the system always responds to a request even if the data is not 
+the most recent version. It prefers giving you *some* data over 
+returning a timeout error. **Soft state** means the state of the 
+system may change over time even without new input because nodes 
+are constantly communicating to synchronize. **Eventually 
+Consistent** is the core idea which means if you write data to 
+Node A it might take a few milliseconds for Node B and Node C to 
+reflect that change but they will get there.
+
+This feels uncomfortable at first because eventually consistent 
+sounds like sometimes wrong. But for things like a social media 
+like count or a friend list updating across regions, a few 
+milliseconds of lag is completely acceptable. The system stays 
+responsive rather than locking everything until every node agrees.
+
+## The CAP Theorem
+
+This is the theoretical backbone of Unit 1. Eric Brewer proposed 
+the CAP Theorem in 2000 and it was formally proven by Gilbert and 
+Lynch in 2002. It states that any distributed system can only 
+guarantee **two of the three** properties simultaneously.
+
+```
+        Consistency
+             △
+            / \
+           /   \
+          /     \
+         /       \
+        ▽_________▽
+  Availability  Partition Tolerance
+```
+
+
+**Consistency** means every read receives the most recent write 
+and all clients see the same data at the same time. 
+**Availability** means every request receives a non-error response 
+regardless of the state of any individual node so the system is 
+always ready to respond. **Partition Tolerance** means the system 
+continues operating even when network messages are lost or parts 
+of the network fail.
+
+Here is the key insight. **Partition Tolerance is non-negotiable** 
+in any real distributed system because networks *will* fail. So in 
+practice you are always choosing between Consistency and 
+Availability during a partition.
+
+CP systems prioritize Consistency over Availability meaning they 
+may become unavailable during a partition rather than return stale 
+data. AP systems prioritize Availability over Consistency meaning 
+they return responses even if not all nodes agree and rely on 
+eventual consistency to catch up.
+
+Most NoSQL databases are AP systems which is exactly why they use 
+BASE rather than ACID. Some modern systems offer **tunable 
+consistency** so you can choose per-operation whether to favor 
+consistency or availability depending on what that specific 
+operation requires. That flexibility is genuinely powerful.
+
+## The Six Types of NoSQL Databases
+
+This was the most eye-opening part of Unit 1 because I realized 
+that NoSQL is not one thing. There are fundamentally different 
+data models and each one is suited to different problems.
+
+## Key-Value Stores
+
+The simplest NoSQL model. Data is stored as key-value pairs where 
+the key is unique and the value is opaque to the database meaning 
+the database does not know or care what is inside the value.
+```
+GET  user:1042
+SET  user:1042  {"name": "Tenzin", "session": "abc123"}
+DEL  user:1042
+```
+
+Think of it as a massive distributed hash map with persistent 
+storage. Examples include Redis and Amazon DynamoDB. Best suited 
+for caching, session storage, rate limiting and leaderboards. The 
+limitation is that you cannot run rich queries on the contents of 
+the value because only lookups by key are supported.
+
+## Document Databases
+
+Store data as JSON or BSON documents grouped into collections. 
+Each document can have a completely different structure with no 
+rigid schema enforced.
+```json
+{
+  "_id": "post_001",
+  "title": "Introduction to NoSQL",
+  "tags": ["databases", "nosql"],
+  "author": { "name": "Saroj", "year": 3 },
+  "views": 142
+}
+```
+
+Examples include MongoDB and CouchDB. Perfect for content 
+management, user profiles, product catalogs and event logs which 
+are all cases where structure varies per record or evolves 
+frequently over time.
+
+## Column-Family Stores
+
+Also called wide-column stores. They look like tables on the 
+surface but each row can have completely different columns and the 
+storage is optimized for write-heavy workloads. The key difference 
+from RDBMS is that data modelling here is **query-driven** meaning 
+you design your tables around the queries you will run rather than 
+around the shape of your data.
+
+Examples include Apache Cassandra and HBase. Best for time-series 
+data, IoT metrics and large-scale event logging with predictable 
+query patterns.
+
+## Graph Databases
+
+Store data as **nodes** which represent entities and **edges** 
+which represent relationships where both can have their own 
+properties. They are purpose-built for traversing complex 
+relationships efficiently because operations that would require 
+many expensive joins in a relational database become first-class 
+operations here.
+
+Examples include Neo4j and Amazon Neptune. Best for social 
+networks, fraud detection, recommendation engines and knowledge 
+graphs. If your data is fundamentally about connections between 
+things then graph databases win.
+
+## Time-Series Databases
+
+Optimized for data points indexed by timestamp such as sensor 
+readings, server metrics and financial tick data. They include 
+built-in features like automatic downsampling, retention policies 
+and time-window aggregations that you would have to build yourself 
+on top of a general-purpose database.
+
+Examples include InfluxDB, Prometheus and TimescaleDB. The data 
+pattern is always a timestamp combined with a metric name, optional 
+tags and a value.
+
+## Vector Databases
+
+The newest category and the most relevant to modern AI workloads. 
+They store high-dimensional vectors which are numerical 
+representations of data called embeddings and they enable 
+similarity search based on distance metrics like cosine similarity 
+or Euclidean distance.
+
+Examples include Pinecone, Milvus and Weaviate. They power 
+semantic search, recommendation engines and retrieval-augmented 
+generation with large language models. This is where databases 
+are heading and it is worth paying attention to early.
+
+## How to Choose the Right NoSQL Database
+
+The module framed selection around four criteria and I found this 
+genuinely useful for thinking through design problems.
+
+**Data structure and access patterns** is the most important 
+starting point. If you only need key-based lookups then a 
+key-value store is the answer. If you need nested documents with 
+flexible schema and field-based queries then a document store 
+fits. If you have large-scale append-only metrics with predictable 
+queries then column-family or time-series is right. If your data 
+is fundamentally about relationships and traversals then graph 
+is the answer. If you need ML-based similarity search then vector 
+is the choice.
+
+**Scalability requirements** ask how much data you expect, what 
+the read-to-write ratio looks like and whether you need 
+single-region or global distribution. High write throughput at 
+global scale points toward column-family systems like Cassandra. 
+Read-heavy workloads benefit from a key-value cache in front of 
+any primary store. Multi-region with eventual consistency 
+acceptable points toward AP systems.
+
+**Consistency needs** depend entirely on the domain. Banking, 
+inventory and financial systems need strong consistency and point 
+toward CP systems. Social feeds, like counts and view counters 
+can tolerate eventual consistency and work well with AP systems. 
+Many modern NoSQL systems offer tunable consistency so you can 
+decide per-operation.
+
+**Ecosystem and tooling** is a practical reality. Sometimes the 
+technically better choice loses to the one with better language 
+drivers, managed cloud services, monitoring tools and community 
+support. Operational considerations matter as much as theoretical 
+ones.
+
+## The DrukRide Activity
+
+The activity for this unit involved designing the data layer for 
+**DrukRide**, a fictional Bhutan-wide ride-hailing platform similar 
+to Uber. It forced me to actually apply everything above rather 
+than just recite definitions.
+
+The key insight the activity gave me is that no single database 
+handles everything well. The answer is **polyglot persistence** 
+which means using the right database for each data domain.
+
+The DrukRide backend uses a different database for each concern. 
+**PostgreSQL** handles trip lifecycle and payments because ACID 
+guarantees are non-negotiable since no passenger can be charged 
+twice or matched with two drivers for one request. **Redis** 
+manages real-time driver locations and sessions because it 
+delivers millisecond reads with built-in TTL-based expiry for 
+stale location data. **MongoDB** stores user and driver profiles 
+because the schema is flexible with varying KYC fields and the 
+workload is mostly reads after initial sign-up. **Cassandra** 
+handles analytics and trip history logs because it is built for 
+write-heavy time-based query patterns at scale. **Neo4j** powers 
+driver-passenger preference matching because that problem is 
+fundamentally about traversing relationship history efficiently.
+
+The most interesting part was working through the CAP decisions. 
+For trip booking you must choose CP because a passenger cannot be 
+charged twice or matched with two drivers. The system should return 
+an error during a partition rather than allow that inconsistency. 
+For the live driver map you choose AP because a slightly stale 
+location is perfectly fine and the map should keep working even 
+if the network link between Thimphu and Phuentsholing is degraded. 
+For the analytics dashboard you also choose AP because management 
+seeing trip counts that are five minutes old is completely 
+acceptable compared to the dashboard going offline entirely.
+
+## What I Am Taking Away From Unit 1
+
+Three weeks ago I thought "database" meant relational database. 
+Now I understand that is like saying "vehicle" means only cars.
+
+The biggest mental shift was around consistency. I used to see 
+ACID as the only correct approach. Unit 1 showed me that eventual 
+consistency is not a compromise but rather a deliberate and 
+rational design choice that enables systems to serve billions of 
+users at low latency. The CAP theorem makes the trade-off explicit 
+and forces you to think about what your system actually needs 
+rather than defaulting to whatever feels safest.
+
+The second shift was around schema design. In RDBMS you normalize 
+first and write queries to join the pieces back together. In 
+column-family stores you design your schema around your queries 
+first. That is a fundamentally different way of thinking and it 
+does not come naturally after years of relational thinking.
+
+The third thing I am carrying forward is the polyglot persistence 
+mindset. Real production systems at scale almost never use a 
+single database. Understanding when and why to reach for each 
+type of database is one of the most practical skills this module 
+is building toward.
+
+Unit 2 moves into hands-on work with specific NoSQL systems. I am 
+curious to see how the theory maps to actual query patterns and 
+real data modelling decisions.
+
+---
+
+*References: Unit 1 lecture notes, NoSQL History notes, 
+DrukRide case study activity, Google Bigtable Paper (2004), 
+Amazon Dynamo Paper (2007), Eric Brewer's CAP Theorem (2000)*
